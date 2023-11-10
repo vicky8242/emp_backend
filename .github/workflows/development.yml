@@ -1,0 +1,42 @@
+name: employee_management CI/CD
+
+on:
+  push:
+    branches: [ "main" ]
+
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.15.0]
+        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Use Node ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    - run: npm ci
+      # env:
+      #   CI: true
+    - name: ssh deploy
+      uses: easingthemes/ssh-deploy@main
+      env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_DEPLOY_KEY_LIVE }}
+          REMOTE_HOST: ${{ secrets.HOST_LIVE }}
+          REMOTE_USER: ${{ secrets.USER }}
+          TARGET: ${{ secrets.DEPLOY_PATH }}
+          SOURCE: "*"
+          EXCLUDE: "/.git/"
+    - name: executing remote ssh commands using password
+      uses: appleboy/ssh-action@master
+      with:
+          host: ${{ secrets.HOST_LIVE }}
+          username: ${{ secrets.USER }}
+          key: ${{ secrets.SSH_DEPLOY_KEY_LIVE }}
+          script: "cd ${{ secrets.DEPLOY_PATH }} &&  pm2 restart employee_management"
